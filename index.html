@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Пространство отраслей США · сеть</title>
+<link rel="stylesheet" href="assets/style.css">
+<style>
+body{height:100vh;display:flex;flex-direction:column;overflow:hidden}
+.topbar{position:static}
+.layout{display:grid;grid-template-columns:284px minmax(0,1fr) 316px;gap:16px;padding:16px;flex:1;min-height:0}
+.layout>aside{display:flex;flex-direction:column;gap:14px;min-height:0;overflow:auto;padding-right:4px}
+.layout>aside::-webkit-scrollbar{width:8px}
+.layout>aside::-webkit-scrollbar-thumb{background:var(--border);border-radius:99px}
+.layout>aside>.card{margin-bottom:0;flex:none}
+.field-label{display:block;font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);margin:10px 0 5px}
+input[type=search]{width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:9px;background:var(--card);color:var(--fg);font:inherit}
+input[type=range]{width:100%;accent-color:var(--accent)}
+select{width:100%;padding:7px 9px;border:1px solid var(--border);border-radius:9px;background:var(--card);color:var(--fg);font:inherit;font-size:14px}
+label.check{display:flex;gap:8px;align-items:flex-start;font-size:13.5px;margin:9px 0;cursor:pointer}
+label.check input{margin-top:2px;accent-color:var(--accent)}
+.viz-card{position:relative;background:var(--card);border:1px solid var(--border);border-radius:16px;height:100%;min-height:0;overflow:hidden;box-shadow:var(--shadow)}
+.viz-card:fullscreen{width:100vw;height:100vh;border:0;border-radius:0}
+#svg{display:block;width:100%;height:100%;cursor:grab;touch-action:none}
+#svg:active{cursor:grabbing}
+.tools{position:absolute;right:12px;top:12px;display:flex;gap:6px}
+.pill-btn{border-radius:999px;font-size:12.5px;padding:6px 12px}
+.icon-btn{padding:7px 10px;border-radius:9px;line-height:1}
+.topbar-left{display:flex;align-items:center;gap:12px}
+.hint{position:absolute;left:14px;bottom:12px;font-size:12px;color:var(--muted);pointer-events:none}
+.legend button{display:grid;grid-template-columns:14px minmax(0,1fr) auto;gap:9px;align-items:center;width:100%;text-align:left;border-color:transparent;margin-bottom:2px;padding:7px 6px}
+.legend button[aria-pressed=true]{border-color:var(--accent);background:#f1f5f9}
+.legend i{width:12px;height:12px;border-radius:50%;border:1px solid #8491a4}
+.legend .n{color:var(--muted);font-size:12px}
+#tip{position:fixed;pointer-events:none;display:none;max-width:320px;background:var(--card);border:1px solid var(--border);border-radius:11px;padding:10px 12px;font-size:13.5px;box-shadow:0 6px 18px rgba(16,32,52,.16);z-index:9}
+#tip b{display:block;margin-bottom:3px}
+#tip span{color:var(--muted)}
+.results{max-height:40vh;overflow:auto;margin-top:10px}
+.results button{width:100%;text-align:left;border:0;border-bottom:1px solid var(--border);border-radius:0;padding:8px 2px}
+#neighbors,#specs{max-height:300px;overflow:auto;margin-top:10px;border-top:1px solid var(--border)}
+#neighbors button,#specs button{width:100%;text-align:left;border:0;border-bottom:1px solid var(--border);border-radius:0;padding:7px 2px;font-size:13.5px}
+#neighbors b,#specs b{color:var(--accent)}
+#neighbors .head,#specs .head{font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);padding:9px 2px 5px}
+#neighbors .sub{color:var(--muted);font-size:12px}
+.node{cursor:pointer}
+.hit{stroke:transparent;fill:none;pointer-events:stroke;cursor:help}
+@media(max-width:1150px){body{height:auto;overflow:auto}
+  .layout{grid-template-columns:minmax(0,1fr)}.layout>aside{overflow:visible}
+  .viz-card{height:64vh;min-height:360px;grid-row:1}}
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="topbar-left">
+  <button id="clear-all" class="pill-btn" type="button">&times; Сбросить</button>
+  <div class="brand"><div class="brand-mark">&#9671;</div><div>
+    <div class="brand-title">Пространство отраслей США</div>
+    </div></div></div>
+  <nav class="nav"><a href="index.html" aria-current="page">Сеть</a><a href="clusters.html">Кластеры</a><a href="methods.html">Методология</a><a href="demo.html">Демо</a></nav>
+  <div class="chips"><span class="chip">Отрасли <b id="chip-nodes">—</b></span><span class="chip">Связи <b id="chip-edges">—</b></span>
+    <span class="chip">Порог <b id="chip-cut">—</b></span></div>
+</header>
+<main class="layout">
+  <aside>
+    <section class="card"><div class="card-title">Фильтр по городу</div>
+      <input id="city" type="search" placeholder="код CBSA или название">
+      <select id="city-sort" style="margin-top:8px"><option value="desc">ECI по убыванию</option><option value="asc">ECI по возрастанию</option></select>
+      <div class="field-hint" id="city-found"></div>
+      <div class="results" id="city-results"></div>
+      <button id="city-reset" style="margin-top:10px;display:none">Сбросить город</button>
+      <div class="field-hint">Выбор города оставляет на графе его специализации (RCA &ge; 1 по занятости) и связи между ними.</div>
+    </section>
+    <section class="card"><div class="card-title">Поиск отраслей</div>
+      <input id="search" type="search" placeholder="код NAICS или название">
+      <div class="field-hint" id="found"></div>
+      <div class="results" id="results"></div>
+    </section>
+    <section class="card"><div class="card-title">Пространство</div>
+      <label class="field-label" for="mode">Покраска</label>
+      <select id="mode"><option value="group">по экономическим группам</option><option value="louvain">по кластерам Louvain</option></select>
+      <label class="check"><input type="checkbox" id="mst" checked> Показывать MST — пунктиром</label>
+      <label class="check"><input type="checkbox" id="grey" checked> Серым — обособленные отрасли</label>
+      <label class="field-label" for="size">Масштаб узлов</label>
+      <input id="size" type="range" min="2" max="12" value="5">
+      <div class="field-hint">Раскладка зафиксирована из pyvis. Размер узла — среднее логарифмической шкалы и шкалы площади по занятости. Связь — proximity × √(сглаженный IDF), порог на том же перцентиле, что proximity = 0,5 в Казахстане.</div>
+    </section>
+  </aside>
+  <section class="viz-card">
+    <svg id="svg" role="img" aria-label="Пространство близости отраслей США"></svg>
+    <div class="tools"><button id="fit">Весь граф</button><button id="full" class="icon-btn" title="На весь экран" aria-label="На весь экран">&#9974;</button></div>
+    <div class="hint">Колесо — масштаб · Перетаскивание — перемещение · Наведение — отрасль или связь</div>
+    <div id="tip"></div>
+  </section>
+  <aside>
+    <section class="card"><div class="card-title" id="detail-title">Выбранная отрасль</div>
+      <div id="detail-name" style="font-size:16px;font-weight:640">США</div>
+      <div class="metric-grid" style="grid-template-columns:1fr 1fr">
+        <div class="metric"><div class="metric-label" id="label-spec">Распространённость</div><div class="metric-value" id="detail-spec">—</div></div>
+        <div class="metric"><div class="metric-label" id="label-deg">Связей</div><div class="metric-value" id="detail-deg">—</div></div></div>
+      <div class="field-hint" id="detail-note">Наведите или щёлкните отрасль на графе.</div>
+      <div id="neighbors"></div>
+      <div id="specs"></div>
+      <button id="reset" style="margin-top:10px;display:none">Показать все отрасли</button>
+    </section>
+    <section class="card"><div class="card-title" id="legend-title">Группы отраслей</div>
+      <div class="legend" id="legend"></div>
+      <div class="field-hint" id="legend-hint">Щелчок по группе подсвечивает её.</div>
+    </section>
+  </aside>
+</main>
+<script src="data/network.js"></script>
+<script>
+const NS='http://www.w3.org/2000/svg',svg=document.getElementById('svg'),tip=document.getElementById('tip');
+const el=(t,a)=>{const e=document.createElementNS(NS,t);for(const k in a)e.setAttribute(k,a[k]);return e;};
+const nf=new Intl.NumberFormat('ru-RU'),f3=v=>v.toFixed(3).replace('.',',');
+const N=DATA.nodes,E=DATA.edges,CT=DATA.cities;
+document.getElementById('chip-nodes').textContent=N.length;
+document.getElementById('chip-cut').textContent='sIDF ≥ '+DATA.cutoff.toFixed(2).replace('.',',');
+const gEdges=el('g',{}),gHit=el('g',{}),gNodes=el('g',{});svg.append(gEdges,gHit,gNodes);
+const maxJobs=Math.max.apply(null,N.map(n=>n.jobs));
+const SPAN=Math.max(Math.max.apply(null,N.map(n=>n.x))-Math.min.apply(null,N.map(n=>n.x)),
+                    Math.max.apply(null,N.map(n=>n.y))-Math.min.apply(null,N.map(n=>n.y)))/1000;
+const radius=(jobs,scale)=>{const lg=2+8*Math.log1p(Math.max(0,jobs))/Math.log1p(maxJobs);
+ const ar=Math.max(2,18*Math.sqrt(Math.max(0,jobs)/maxJobs));return (lg+ar)/2*scale/5*SPAN;};
+const MUTED='#e4e8ed',MUTED_LINE='#c3cad3';
+gNodes.style.filter='drop-shadow(0 0 '+(2.5*SPAN)+'px rgba(15,23,42,.20))';
+const mode=()=>document.getElementById('mode').value;
+const apart=n=>document.getElementById('grey').checked&&n.state!=='core';
+const fill=n=>mode()==='louvain'?(n.cluster<0?DATA.grey:DATA.louvain[n.cluster]):(apart(n)?DATA.grey:n.color);
+const line=n=>'#000000';
+const POS={core:'в ядре',island:'обособлена группой',solo:'обособлена, своих связей нет'};
+const lines=E.map(e=>{const a=N[e.s],b=N[e.t];
+ const l=el('line',{x1:a.x,y1:a.y,x2:b.x,y2:b.y,stroke:'#8596ab','stroke-width':0.9*SPAN,opacity:0.3});
+ if(e.tree)l.setAttribute('stroke-dasharray',(5*SPAN)+' '+(4*SPAN));
+ gEdges.append(l);return l;});
+// Невидимые широкие линии ловят наведение на связь: в подсказке sIDF, proximity и общие города.
+const hits=E.map((e,k)=>{const a=N[e.s],b=N[e.t];
+ const h=el('line',{x1:a.x,y1:a.y,x2:b.x,y2:b.y,'stroke-width':5*SPAN,class:'hit'});
+ h.addEventListener('mousemove',ev=>{tip.style.display='block';
+  tip.style.left=Math.min(ev.clientX+16,innerWidth-340)+'px';tip.style.top=(ev.clientY+16)+'px';
+  tip.innerHTML='<b>'+a.id+' × '+b.id+'</b><span>'+a.name+' · '+b.name+'</span><br>'
+   +'sIDF: '+f3(e.v)+(e.tree?' · ребро MST, ниже порога':'')+'<br>proximity: '+f3(e.a)
+   +'<br>Общих городов: '+e.c+' (распространённость '+a.ubiq+' / '+b.ubiq+')';});
+ h.addEventListener('mouseleave',()=>{tip.style.display='none';});
+ gHit.append(h);return h;});
+const circles=N.map((n,i)=>{const c=el('circle',{cx:n.x,cy:n.y,r:radius(n.jobs,5),fill:fill(n),
+  stroke:line(n),'stroke-width':1*SPAN,class:'node',tabindex:0});
+ c.addEventListener('mousemove',ev=>{tip.style.display='block';
+  tip.style.left=Math.min(ev.clientX+16,innerWidth-340)+'px';tip.style.top=(ev.clientY+16)+'px';
+  tip.innerHTML='<b>'+n.id+' — '+n.name+'</b><span>'+n.sector+' · NAICS-'+n.level+'</span><br>'
+   +'Занятость: '+nf.format(n.jobs)+'<br>Распространённость: '+n.ubiq+' из 925 · вес редкости '+n.w.toFixed(2).replace('.',',')
+   +'<br>Сложность (PCI): '+n.pci.toFixed(2).replace('.',',')+'<br>Связей выше порога: '+n.deg
+   +'<br>Ближайшая связь: sIDF '+f3(n.maxprox)+' · proximity '+f3(n.maxavg)
+   +'<br>Кластер Louvain: '+(n.cluster<0?'вне кластеров':n.cluster+1)
+   +(n.state!=='core'?'<br><span>'+POS[n.state]+'</span>':'');});
+ c.addEventListener('mouseleave',()=>{tip.style.display='none';});
+ c.addEventListener('click',()=>select(i));
+ gNodes.append(c);return c;});
+const nbr=N.map(()=>[]);
+E.forEach((e,k)=>{nbr[e.s].push({j:e.t,v:e.v,a:e.a,c:e.c,tree:e.tree,k:k});nbr[e.t].push({j:e.s,v:e.v,a:e.a,c:e.c,tree:e.tree,k:k});});
+nbr.forEach(list=>list.sort((a,b)=>b.v-a.v));
+const specOf=N.map(()=>[]);
+CT.forEach((t,k)=>{for(const i of t.i)specOf[i].push(k);});
+let selected=null,city=null;
+function select(i){selected=i;draw();}
+function selectCity(k){city=k;selected=null;draw();}
+function clearSelection(){selected=null;draw();}
+function clearAll(){selected=null;city=null;draw();}
+function draw(){const showTree=document.getElementById('mst').checked;
+ const inCity=city===null?null:new Set(CT[city].i);
+ const near=inCity?inCity:(selected===null?null:new Set([selected].concat(nbr[selected].filter(x=>showTree||!x.tree).map(x=>x.j))));
+ circles.forEach((c,j)=>{const on=!near||near.has(j);
+  c.setAttribute('fill',on?fill(N[j]):MUTED);c.setAttribute('opacity',groupOpacity(j));
+  c.setAttribute('stroke',j===selected?'#16202e':(on?line(N[j]):MUTED_LINE));
+  c.setAttribute('stroke-width',(j===selected?2.6:1)*SPAN);});
+ const keep=selected===null?null:new Set(nbr[selected].map(x=>x.k));
+ // Рёбра при фильтре по городу не прячутся и не перекрашиваются: фон сети остаётся целым,
+ // как в «Пространстве ОКЭД3». Подсвечиваются только связи узла, выбранного вручную.
+ lines.forEach((l,k)=>{const vis=showTree||!E[k].tree;
+  l.style.display=vis?'':'none';hits[k].style.display=vis?'':'none';
+  const hot=keep&&keep.has(k);l.setAttribute('opacity',hot?0.9:0.3);l.setAttribute('stroke-width',(hot?1.8:0.9)*SPAN);});
+ const box=document.getElementById('neighbors'),reset=document.getElementById('reset');
+ const specBox=document.getElementById('specs'),head=document.getElementById('detail-title');
+ const labelSpec=document.getElementById('label-spec'),labelDeg=document.getElementById('label-deg');
+ document.getElementById('city-reset').style.display=city===null?'none':'';
+ if(selected===null&&city!==null){const t=CT[city];head.textContent='Выбранный город';
+  labelSpec.textContent='Специализаций';labelDeg.textContent='Занятость';
+  document.getElementById('detail-name').textContent=t.n;
+  document.getElementById('detail-spec').textContent=t.i.length;
+  document.getElementById('detail-deg').textContent=nf.format(t.jobs);
+  document.getElementById('detail-note').textContent='CBSA '+t.c+' · '+(t.t==='metro'?'метрополитен':'микрополитен')+' · ECI '+t.eci.toFixed(2).replace('.',',');
+  const rows=t.i.slice().sort((a,b)=>N[b].pci-N[a].pci);
+  box.innerHTML='<div class="head">Специализации · '+rows.length+' · по сложности</div>'
+   +rows.map(i=>'<button data-i="'+i+'">'+N[i].id+' · '+N[i].name+' · <b>'+N[i].pci.toFixed(2).replace('.',',')+'</b></button>').join('');
+  box.querySelectorAll('button').forEach(b=>{b.onclick=()=>select(+b.dataset.i);});
+  specBox.innerHTML='';reset.style.display='';return;}
+ head.textContent='Выбранная отрасль';specBox.innerHTML='';
+ labelSpec.textContent='Распространённость';labelDeg.textContent='Связей';
+ if(selected===null){document.getElementById('detail-name').textContent='США';
+  document.getElementById('detail-spec').textContent='—';document.getElementById('detail-deg').textContent='—';
+  document.getElementById('detail-note').textContent='Наведите или щёлкните отрасль на графе.';
+  box.innerHTML='';reset.style.display='none';return;}
+ const n=N[selected];
+ document.getElementById('detail-name').textContent=n.id+' — '+n.name;
+ document.getElementById('detail-spec').textContent=n.ubiq;
+ document.getElementById('detail-deg').textContent=n.deg;
+ document.getElementById('detail-note').textContent=n.sector+' · NAICS-'+n.level+' · занятость '+nf.format(n.jobs)
+  +' · PCI '+n.pci.toFixed(2).replace('.',',')+' · кластер '+(n.cluster<0?'вне кластеров':n.cluster+1)+' · '+POS[n.state];
+ const list=nbr[selected].filter(x=>showTree||!x.tree);
+ box.innerHTML='<div class="head">Связанные отрасли · '+list.length+' · sIDF / proximity</div>'
+  +list.map(x=>'<button data-i="'+x.j+'">'+N[x.j].id+' · '+N[x.j].name+' · <b>'+f3(x.v)+'</b> <span class="sub">/ '+f3(x.a)+' · общих '+x.c+'</span>'
+   +(x.tree?' · MST':'')+'</button>').join('');
+ box.querySelectorAll('button').forEach(b=>{b.onclick=()=>select(+b.dataset.i);});
+ const mine=specOf[selected];
+ specBox.innerHTML='<div class="head">Города специализации · '+mine.length+' · по ECI</div>'
+  +mine.map(k=>'<button data-k="'+k+'">'+CT[k].n+(CT[k].t==='micro'?' <span class="sub">микро</span>':'')+' · ECI <b>'+CT[k].eci.toFixed(2).replace('.',',')+'</b></button>').join('');
+ specBox.querySelectorAll('button').forEach(b=>{b.onclick=()=>selectCity(+b.dataset.k);});
+ reset.style.display='';}
+function legendKey(n){if(mode()==='louvain')return n.cluster<0?'lvnone':'lv'+n.cluster;
+ return apart(n)?'apart':n.sector;}
+function groupOpacity(j){if(!active.size)return 1;return active.has(legendKey(N[j]))?1:0.1;}
+const xs=N.map(n=>n.x),ys=N.map(n=>n.y),pad=90;
+const minX=Math.min.apply(null,xs),minY=Math.min.apply(null,ys);
+const boxW=Math.max.apply(null,xs)-minX+2*pad,boxH=Math.max.apply(null,ys)-minY+2*pad;
+const frameAR=()=>{const r=svg.getBoundingClientRect();return r.width&&r.height?r.width/r.height:boxW/boxH;};
+function homeView(){const ar=frameAR();let W=boxW,H=boxH;if(boxW/boxH<ar)W=boxH*ar;else H=boxW/ar;
+ return [minX-pad-(W-boxW)/2,minY-pad-(H-boxH)/2,W,H];}
+let home=homeView(),view=home.slice();
+const apply=()=>svg.setAttribute('viewBox',view.join(' '));apply();
+function fit(){home=homeView();view=home.slice();apply();}
+function reframe(){const ar=frameAR(),cx=view[0]+view[2]/2,cy=view[1]+view[3]/2;
+ const s=Math.sqrt(view[2]*view[3]),W=s*Math.sqrt(ar),H=s/Math.sqrt(ar);view=[cx-W/2,cy-H/2,W,H];home=homeView();apply();}
+addEventListener('resize',reframe);document.addEventListener('fullscreenchange',reframe);
+svg.addEventListener('wheel',e=>{e.preventDefault();const r=svg.getBoundingClientRect();
+ const k=e.deltaY>0?1.12:1/1.12,mx=view[0]+(e.clientX-r.left)/r.width*view[2],my=view[1]+(e.clientY-r.top)/r.height*view[3];
+ view=[mx-(mx-view[0])*k,my-(my-view[1])*k,view[2]*k,view[3]*k];apply();},{passive:false});
+let drag=null;
+svg.addEventListener('pointerdown',e=>{if(e.target.closest('circle'))return;drag={x:e.clientX,y:e.clientY,v:view.slice()};svg.setPointerCapture(e.pointerId);});
+svg.addEventListener('pointermove',e=>{if(!drag)return;const r=svg.getBoundingClientRect();
+ view[0]=drag.v[0]-(e.clientX-drag.x)/r.width*view[2];view[1]=drag.v[1]-(e.clientY-drag.y)/r.height*view[3];apply();});
+svg.addEventListener('pointerup',()=>{drag=null;});
+document.getElementById('reset').onclick=clearSelection;
+document.getElementById('clear-all').onclick=()=>{clearAll();document.getElementById('search').value='';document.getElementById('city').value='';find();findCity();};
+document.getElementById('city-reset').onclick=()=>{city=null;draw();};
+document.getElementById('fit').onclick=fit;
+document.getElementById('full').onclick=()=>{const card=svg.closest('.viz-card');if(document.fullscreenElement)document.exitFullscreen();else card.requestFullscreen();};
+function redraw(){const scale=+document.getElementById('size').value,showTree=document.getElementById('mst').checked;
+ circles.forEach((c,i)=>{c.setAttribute('r',radius(N[i].jobs,scale));c.setAttribute('fill',fill(N[i]));});
+ let shown=0;E.forEach(e=>{if(!e.tree)shown++;});
+ document.getElementById('chip-edges').textContent=nf.format(shown)+(showTree?' + '+E.filter(e=>e.tree).length+' MST':'');}
+const legend=document.getElementById('legend'),active=new Set();
+function buildLegend(){const lv=mode()==='louvain',ap=document.getElementById('grey').checked;let groups;
+ document.getElementById('legend-title').textContent=lv?'Кластеры Louvain':'Группы отраслей';
+ document.getElementById('legend-hint').textContent=lv?'Кластеры по связям выше порога, без рёбер MST; нумерация по сложности: 1 — самый простой, последний — самый сложный (средний PCI). Щелчок подсвечивает кластер.':'Щелчок по группе подсвечивает её.';
+ if(lv){groups=DATA.clusters.map((c,k)=>({name:'Кластер '+(k+1)+' · PCI '+c.pci.toFixed(2).replace('.',',')+' · '+Object.entries(c.mix).map(([b,n])=>b.toLowerCase().split(',')[0]+' '+n).join(', '),color:DATA.louvain[k],key:'lv'+k,count:c.n}));
+  groups.push({name:'Вне кластеров',color:DATA.grey,key:'lvnone',count:N.filter(n=>n.cluster<0).length});}
+ else{groups=Object.keys(DATA.palette).map(name=>({name:name,color:DATA.palette[name],key:name,count:N.filter(n=>n.sector===name&&(!ap||n.state==='core')).length}));
+  if(ap)groups.push({name:'Обособленные',color:DATA.grey,key:'apart',count:N.filter(n=>n.state!=='core').length});}
+ const keys=new Set(groups.map(g=>g.key));for(const k of Array.from(active))if(!keys.has(k))active.delete(k);
+ legend.innerHTML=groups.map(g=>'<button aria-pressed="'+active.has(g.key)+'" data-k="'+g.key+'"><i style="background:'+g.color+'"></i><span>'+g.name+'</span><span class="n">'+g.count+'</span></button>').join('');
+ legend.querySelectorAll('button').forEach(b=>{b.onclick=()=>{const k=b.dataset.k;if(active.has(k))active.delete(k);else active.add(k);b.setAttribute('aria-pressed',active.has(k));draw();};});}
+for(const id of ['size','mst','grey','mode'])document.getElementById(id).oninput=()=>{redraw();buildLegend();draw();};
+const search=document.getElementById('search'),results=document.getElementById('results');
+function find(){const q=search.value.trim().toLowerCase();const hit=[];
+ N.forEach((n,i)=>{if(!q||n.id.indexOf(q)>=0||n.name.toLowerCase().indexOf(q)>=0)hit.push([n,i]);});
+ document.getElementById('found').textContent='Найдено: '+hit.length;
+ results.innerHTML=hit.slice(0,150).map(p=>'<button data-i="'+p[1]+'">'+p[0].id+' · '+p[0].name+'</button>').join('');
+ results.querySelectorAll('button').forEach(b=>{b.onclick=()=>select(+b.dataset.i);});}
+search.oninput=find;
+const cityIn=document.getElementById('city'),cityRes=document.getElementById('city-results');
+function findCity(){const q=cityIn.value.trim().toLowerCase();const hit=[];
+ CT.forEach((t,k)=>{if(!q||t.c.indexOf(q)>=0||t.n.toLowerCase().indexOf(q)>=0)hit.push(k);});
+ const asc=document.getElementById('city-sort').value==='asc';   // CT отсортирован по убыванию ECI при сборке
+ if(asc)hit.reverse();
+ document.getElementById('city-found').textContent='Найдено городов: '+hit.length+(asc?' · по возрастанию ECI':' · по убыванию ECI');
+ cityRes.innerHTML=hit.slice(0,150).map(k=>'<button data-k="'+k+'">'+CT[k].n+(CT[k].t==='micro'?' <span class="sub" style="color:var(--muted);font-size:12px">микро</span>':'')+' · ECI <b>'+CT[k].eci.toFixed(2).replace('.',',')+'</b> <span style="color:var(--muted);font-size:12px">· спец. '+CT[k].i.length+'</span></button>').join('');
+ cityRes.querySelectorAll('button').forEach(b=>{b.onclick=()=>selectCity(+b.dataset.k);});}
+cityIn.oninput=findCity;document.getElementById('city-sort').onchange=findCity;
+redraw();buildLegend();draw();find();findCity();
+</script>
+</body></html>
