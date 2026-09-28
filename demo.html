@@ -32,6 +32,7 @@
 .list button i{width:10px;height:10px;border-radius:50%;border:1px solid #8491a4}
 .list button .v{color:var(--accent);font-weight:600;font-variant-numeric:tabular-nums}
 .list button .s{color:var(--muted);font-size:12px;display:block}
+.list .scroll{max-height:420px;overflow-y:auto}
 .list .head{font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);padding:12px 2px 6px}
 .viz{position:relative;background:var(--card);border:1px solid var(--border);border-radius:16px;box-shadow:var(--shadow);height:560px;overflow:hidden}
 #svg{display:block;width:100%;height:100%}
@@ -73,7 +74,7 @@
   <aside>
     <section class="card list">
       <div class="card-title">Что обычно рядом</div>
-      <div id="r-nbr"></div>
+      <div id="r-nbr" class="scroll"></div>
       <div class="head">Рядом и сложнее</div>
       <div id="r-up"></div>
       <div class="field-hint" style="margin-top:8px">Первое число — сила связи (sIDF), второе — сложность соседа от 0 до 1.</div>
@@ -144,7 +145,7 @@ function pick(i){const n=N[i];q.value=n.ru;sugg.style.display='none';pickEl.valu
  document.getElementById('r-cx-sub').textContent='сложнее '+Math.round(100*n.cx)+'% отраслей · PCI '+f2(n.pci);
  document.getElementById('r-cluster').innerHTML=cl>=0?'<b>Тип городской экономики:</b> '+DATA.clusterNames[cl]+' — '+DATA.clusterNotes[cl]+'.':(n.state==='solo'?'<b>Обособленная отрасль:</b> присутствует в городах примерно пропорционально занятости и ни с кем не совпадает выше случайного.':'<b>Вне кластеров:</b> связана только с небольшой группой отраслей.');
  const row=(x,val)=>'<button data-i="'+x.j+'"><i style="background:'+N[x.j].color+'"></i><span>'+N[x.j].ru+'<span class="s">'+N[x.j].id+' · '+N[x.j].name+'</span></span><span class="v">'+val+'</span></button>';
- document.getElementById('r-nbr').innerHTML=nbr[i].length?nbr[i].slice(0,10).map(x=>row(x,f2(x.v)+' · '+f2(N[x.j].cx))).join(''):'<div class="field-hint">Связей выше порога нет.</div>';
+ document.querySelector('#r-nbr').previousElementSibling.textContent='Что обычно рядом · '+nbr[i].length;document.getElementById('r-nbr').innerHTML=nbr[i].length?nbr[i].map(x=>row(x,f2(x.v)+' · '+f2(N[x.j].cx))).join(''):'<div class="field-hint">Связей выше порога нет.</div>';
  const up=nbr[i].filter(x=>N[x.j].cx>n.cx).sort((a,b)=>N[b.j].cx-N[a.j].cx).slice(0,6);
  document.getElementById('r-up').innerHTML=up.length?up.map(x=>row(x,f2(x.v)+' · '+f2(N[x.j].cx))).join(''):'<div class="field-hint">Среди соседей нет отраслей сложнее этой.</div>';
  document.querySelectorAll('#r-nbr button,#r-up button').forEach(b=>{b.onclick=()=>pick(+b.dataset.i);});
