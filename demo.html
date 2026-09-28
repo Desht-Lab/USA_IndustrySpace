@@ -38,7 +38,7 @@
 .note{font-size:13px;color:var(--muted);margin-top:10px;line-height:1.5}
 #tip{position:fixed;pointer-events:none;display:none;max-width:320px;background:var(--card);border:1px solid var(--border);border-radius:11px;padding:10px 12px;font-size:13.5px;box-shadow:0 6px 18px rgba(16,32,52,.16);z-index:9}
 #tip b{display:block;margin-bottom:3px}#tip span{color:var(--muted)}
-.cities td{padding:5px 8px;border-bottom:1px solid var(--border);font-size:14px}.cities td.num{text-align:right;font-variant-numeric:tabular-nums}
+.cities{width:100%;border-collapse:collapse}.cities td{padding:5px 8px;border-bottom:1px solid var(--border);font-size:14px}.cities td.num{text-align:right;font-variant-numeric:tabular-nums}
 @media(max-width:1000px){.result{grid-template-columns:1fr}.viz{height:420px}}
 </style>
 </head>
@@ -86,7 +86,7 @@
   </aside>
 </section>
 </main>
-<script src="data/network.js?v=895a0ea1"></script>
+<script src="data/network.js?v=11e3af8a"></script>
 <script>
 const N=DATA.nodes,E=DATA.edges,CT=DATA.cities,NS='http://www.w3.org/2000/svg';
 const nf=new Intl.NumberFormat('ru-RU'),f2=v=>v.toFixed(2).replace('.',','),f3=v=>v.toFixed(3).replace('.',',');
