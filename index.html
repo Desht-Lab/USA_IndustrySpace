@@ -34,7 +34,7 @@ label.check input{margin-top:2px;accent-color:var(--accent)}
 .legend .n{color:var(--muted);font-size:12px}
 #tip{position:fixed;pointer-events:none;display:none;max-width:320px;background:var(--card);border:1px solid var(--border);border-radius:11px;padding:10px 12px;font-size:13.5px;box-shadow:0 6px 18px rgba(16,32,52,.16);z-index:9}
 #tip b{display:block;margin-bottom:3px}
-#tip span{color:var(--muted)} #tip span.ru{display:block;color:var(--text);font-weight:500} .list button span.ru,#results button span.ru,#city-results button span.ru,#neighbors button span.ru{display:block;color:var(--muted);font-size:12.5px;font-weight:400}
+#tip span{color:var(--muted)} #tip span.ru{display:block;color:var(--text);font-weight:500} .list button span.ru,#results button span.ru,#city-results button span.ru,#specs button span.ru,#neighbors button span.ru{display:block;color:var(--muted);font-size:12.5px;font-weight:400}
 .results{max-height:40vh;overflow:auto;margin-top:10px}
 .results button{width:100%;text-align:left;border:0;border-bottom:1px solid var(--border);border-radius:0;padding:8px 2px}
 #neighbors,#specs{max-height:300px;overflow:auto;margin-top:10px;border-top:1px solid var(--border)}
@@ -63,7 +63,7 @@ label.check input{margin-top:2px;accent-color:var(--accent)}
   <aside>
     <section class="card"><div class="card-title">Фильтр по городу</div>
       <input id="city" type="search" placeholder="код CBSA или название">
-      <select id="city-sort" style="margin-top:8px"><option value="desc">ECI по убыванию</option><option value="asc">ECI по возрастанию</option></select>
+      <select id="city-sort" style="margin-top:8px"><option value="desc">по убыванию индекса сложности</option><option value="asc">по возрастанию индекса сложности</option></select>
       <div class="field-hint" id="city-found"></div>
       <div class="results" id="city-results"></div>
       <button id="city-reset" style="margin-top:10px;display:none">Сбросить город</button>
@@ -209,8 +209,8 @@ function draw(){const showTree=document.getElementById('mst').checked;
    +(x.mst?' · MST':'')+'<span class="ru">'+N[x.j].ru+'</span></button>').join('');
  box.querySelectorAll('button').forEach(b=>{b.onclick=()=>select(+b.dataset.i);});
  const mine=specOf[selected];
- specBox.innerHTML='<div class="head">Города специализации · '+mine.length+' · по ECI</div>'
-  +mine.map(k=>'<button data-k="'+k+'">'+CT[k].n+(CT[k].t==='micro'?' <span class="sub">микро</span>':'')+' · ECI <b>'+CT[k].eci.toFixed(2).replace('.',',')+'</b></button>').join('');
+ specBox.innerHTML='<div class="head">Города специализации · '+mine.length+' · по индексу сложности</div>'
+  +mine.map(k=>'<button data-k="'+k+'">'+(CT[k].ru||CT[k].n)+(CT[k].t==='micro'?' <span class="sub">микро</span>':'')+' · ECI <b>'+CT[k].eci.toFixed(2).replace('.',',')+'</b>'+(CT[k].ru?'<span class="ru">'+CT[k].n+'</span>':'')+'</button>').join('');
  specBox.querySelectorAll('button').forEach(b=>{b.onclick=()=>selectCity(+b.dataset.k);});
  reset.style.display='';}
 function legendKey(n){if(mode()==='louvain')return n.cluster<0?'lvnone':'lv'+n.cluster;
@@ -270,7 +270,7 @@ function findCity(){const q=cityIn.value.trim().toLowerCase();const hit=[];
  CT.forEach((t,k)=>{if(!q||t.c.indexOf(q)>=0||t.n.toLowerCase().indexOf(q)>=0||(t.ru||'').toLowerCase().indexOf(q)>=0)hit.push(k);});
  const asc=document.getElementById('city-sort').value==='asc';   // CT отсортирован по убыванию ECI при сборке
  if(asc)hit.reverse();
- document.getElementById('city-found').textContent='Найдено городов: '+hit.length+(asc?' · по возрастанию ECI':' · по убыванию ECI');
+ document.getElementById('city-found').textContent='Найдено городов: '+hit.length+(asc?' · по возрастанию индекса сложности':' · по убыванию индекса сложности');
  cityRes.innerHTML=hit.slice(0,150).map(k=>'<button data-k="'+k+'">'+(CT[k].ru||CT[k].n)+(CT[k].t==='micro'?' <span class="sub" style="color:var(--muted);font-size:12px">микро</span>':'')+' · ECI <b>'+CT[k].eci.toFixed(2).replace('.',',')+'</b> <span style="color:var(--muted);font-size:12px">· спец. '+CT[k].i.length+'</span>'+(CT[k].ru?'<span class="ru">'+CT[k].n+'</span>':'')+'</button>').join('');
  cityRes.querySelectorAll('button').forEach(b=>{b.onclick=()=>selectCity(+b.dataset.k);});}
 cityIn.oninput=findCity;document.getElementById('city-sort').onchange=findCity;
