@@ -89,6 +89,7 @@
 const N=DATA.nodes,E=DATA.edges,CT=DATA.cities,NS='http://www.w3.org/2000/svg';
 const nf=new Intl.NumberFormat('ru-RU'),f2=v=>v.toFixed(2).replace('.',','),f3=v=>v.toFixed(3).replace('.',',');
 const bn=v=>(v/1000).toLocaleString('ru-RU',{minimumFractionDigits:v>=10000?1:2,maximumFractionDigits:v>=10000?1:2});
+const gcol=n=>n.state!=='core'?DATA.grey:n.color;   // обособленные отрасли серым, как на сети
 const nbr=N.map(()=>[]);E.forEach(e=>{if(e.tree)return;nbr[e.s].push({j:e.t,v:e.v});nbr[e.t].push({j:e.s,v:e.v});});
 nbr.forEach(l=>l.sort((a,b)=>b.v-a.v));
 const TOPK=DATA.topk||10;const nb=i=>nbr[i].slice(0,TOPK);
@@ -108,7 +109,7 @@ const q=document.getElementById('q'),sugg=document.getElementById('sugg');let ca
 function suggest(){const v=q.value.trim();if(v.length<2){sugg.style.display='none';return;}
  cand=N.map((n,i)=>[score(v,i),i]).filter(p=>p[0]>=0.45).sort((a,b)=>b[0]-a[0]).slice(0,8);act=0;
  if(!cand.length){sugg.innerHTML='<button disabled>Ничего похожего. Попробуйте другое слово или код NAICS</button>';sugg.style.display='block';return;}
- sugg.innerHTML=cand.map((p,k)=>{const n=N[p[1]];return '<button data-i="'+p[1]+'" class="'+(k===act?'active':'')+'"><i style="background:'+n.color+'"></i>'+n.ru+' <span style="color:var(--muted)">· '+n.id+'</span><span class="en">'+n.name+'</span></button>';}).join('');
+ sugg.innerHTML=cand.map((p,k)=>{const n=N[p[1]];return '<button data-i="'+p[1]+'" class="'+(k===act?'active':'')+'"><i style="background:'+gcol(n)+'"></i>'+n.ru+' <span style="color:var(--muted)">· '+n.id+'</span><span class="en">'+n.name+'</span></button>';}).join('');
  sugg.querySelectorAll('button[data-i]').forEach(b=>{b.onclick=()=>pick(+b.dataset.i);});sugg.style.display='block';}
 q.addEventListener('input',suggest);
 q.addEventListener('keydown',e=>{if(sugg.style.display!=='block')return;
@@ -140,14 +141,14 @@ const endDrag=()=>{drag=null;svg.style.cursor='grab';};svg.addEventListener('poi
 svg.addEventListener('wheel',e=>{const v=getVB();if(!v)return;e.preventDefault();const r=svg.getBoundingClientRect(),f=e.deltaY>0?1.15:1/1.15;const px=v[0]+(e.clientX-r.left)/r.width*v[2],py=v[1]+(e.clientY-r.top)/r.height*v[3];setVB([px-(px-v[0])*f,py-(py-v[1])*f,v[2]*f,v[3]*f]);},{passive:false});
 function pick(i){const n=N[i];q.value=n.ru;sugg.style.display='none';pickEl.value=String(i);document.getElementById('result').classList.add('on');
  const near=new Set(nb(i).map(x=>x.j));
- circles.forEach((c,j)=>{const on=j===i||near.has(j);c.setAttribute('fill',on?N[j].color:'#e4e8ed');c.setAttribute('stroke',j===i?'#16202e':(on?'#000':'#c3cad3'));c.setAttribute('stroke-width',(j===i?3:1)*SPAN);c.setAttribute('opacity',on?1:0.5);});
+ circles.forEach((c,j)=>{const on=j===i||near.has(j);c.setAttribute('fill',on?gcol(N[j]):'#e4e8ed');c.setAttribute('stroke',j===i?'#16202e':(on?'#000':'#c3cad3'));c.setAttribute('stroke-width',(j===i?3:1)*SPAN);c.setAttribute('opacity',on?1:0.5);});
  lines.forEach(l=>{const hot=(+l.dataset.s===i&&near.has(+l.dataset.t))||(+l.dataset.t===i&&near.has(+l.dataset.s));l.setAttribute('opacity',hot?0.85:0.06);l.setAttribute('stroke-width',(hot?1.8:0.8)*SPAN);});
  gN.append(circles[i]);view([i].concat([...near]));
  document.getElementById('r-ru').textContent=n.ru;document.getElementById('r-en').textContent=n.id+' · '+n.name;
- const cl=n.cluster;document.getElementById('r-chips').innerHTML='<span class="chip"><i style="background:'+n.color+'"></i>'+n.sector+'</span>';
+ const cl=n.cluster;document.getElementById('r-chips').innerHTML='<span class="chip"><i style="background:'+gcol(n)+'"></i>'+n.sector+'</span>';
  document.getElementById('r-cx').textContent=f2(n.cx);document.getElementById('r-bar').style.width=(100*n.cx)+'%';
  document.getElementById('r-cx-sub').textContent='сложнее '+Math.round(100*n.cx)+'% отраслей · PCI '+f2(n.pci);
- const row=(x,val)=>'<button data-i="'+x.j+'"><i style="background:'+N[x.j].color+'"></i><span>'+N[x.j].ru+'<span class="s">'+N[x.j].id+' · '+N[x.j].name+'</span></span><span class="v">'+val+'</span></button>';
+ const row=(x,val)=>'<button data-i="'+x.j+'"><i style="background:'+gcol(N[x.j])+'"></i><span>'+N[x.j].ru+'<span class="s">'+N[x.j].id+' · '+N[x.j].name+'</span></span><span class="v">'+val+'</span></button>';
  document.querySelector('.list .card-title').textContent=''+(nb(i).length>=TOPK?'Топ-10 связанных отраслей':'Связанные отрасли · '+nb(i).length);document.getElementById('r-nbr').innerHTML=nb(i).length?nb(i).map(x=>row(x,f2(N[x.j].cx))).join(''):'<div class="field-hint">Связей выше порога нет.</div>';
   document.querySelectorAll('#r-nbr button').forEach(b=>{b.onclick=()=>pick(+b.dataset.i);});
  const byId={};CT.forEach(c=>{byId[c.c]=c;});

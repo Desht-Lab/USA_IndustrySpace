@@ -57,8 +57,7 @@ label.check input{margin-top:2px;accent-color:var(--accent)}
     <div class="brand-title">Пространство отраслей США</div>
     </div></div></div>
   <nav class="nav"><a href="index.html" aria-current="page">Сеть</a><a href="stats.html">Статистика</a><a href="demo.html">Демо</a></nav>
-  <div class="chips"><span class="chip">Отрасли <b id="chip-nodes">—</b></span><span class="chip">Связи <b id="chip-edges">—</b></span>
-    <span class="chip">Порог <b id="chip-cut">—</b></span></div>
+  <div class="chips"><span class="chip">Отрасли <b id="chip-nodes">—</b></span><span class="chip">Связи <b id="chip-edges">—</b></span><span id="chip-cut" style="display:none"></span></div>
 </header>
 <main class="layout">
   <aside>
@@ -77,8 +76,7 @@ label.check input{margin-top:2px;accent-color:var(--accent)}
     </section>
     <section class="card"><div class="card-title">Пространство</div>
       <select id="mode" style="display:none"><option value="group">по экономическим группам</option></select>
-      <label class="check"><input type="checkbox" id="mst" checked> Показывать MST — пунктиром</label>
-      <label class="check"><input type="checkbox" id="grey" checked> Серым — обособленные отрасли</label>
+      <input type="checkbox" id="mst" checked style="display:none"><input type="checkbox" id="grey" checked style="display:none">
       <label class="field-label" for="size">Масштаб узлов</label>
       <input id="size" type="range" min="2" max="12" value="7">
     </section>
@@ -247,7 +245,7 @@ function redraw(){const scale=+document.getElementById('size').value,showTree=do
  circles.forEach((c,i)=>{c.setAttribute('r',radius(N[i].jobs,scale));c.setAttribute('fill',fill(N[i]));});
  lines.forEach((l,k)=>l.setAttribute('stroke',ecol(E[k])));
  let shown=0;E.forEach(e=>{if(!e.tree)shown++;});
- document.getElementById('chip-edges').textContent=nf.format(shown)+(showTree?' + '+E.filter(e=>e.tree).length+' MST':'');}
+ document.getElementById('chip-edges').textContent=nf.format(shown);}
 const legend=document.getElementById('legend'),active=new Set();
 function buildLegend(){const lv=mode()==='louvain',ap=document.getElementById('grey').checked;let groups;
  document.getElementById('legend-title').textContent=lv?'Кластеры Louvain':'Группы отраслей';
