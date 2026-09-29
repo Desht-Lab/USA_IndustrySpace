@@ -76,13 +76,11 @@ label.check input{margin-top:2px;accent-color:var(--accent)}
       <div class="results" id="results"></div>
     </section>
     <section class="card"><div class="card-title">Пространство</div>
-      <label class="field-label" for="mode">Покраска</label>
-      <select id="mode"><option value="group">по экономическим группам</option><option value="louvain">по кластерам Louvain</option></select>
+      <select id="mode" style="display:none"><option value="group">по экономическим группам</option></select>
       <label class="check"><input type="checkbox" id="mst" checked> Показывать MST — пунктиром</label>
       <label class="check"><input type="checkbox" id="grey" checked> Серым — обособленные отрасли</label>
       <label class="field-label" for="size">Масштаб узлов</label>
       <input id="size" type="range" min="2" max="12" value="7">
-      <div class="field-hint">Раскладка зафиксирована из pyvis. Размер узла — по ФОТ отрасли. Связь — proximity × √(wᵢ·wⱼ), w = ln(925/ubiquity)+1, порог sIDF ≥ 1. Показаны все связи порога, ребро в цвете узла-источника; пунктиром рёбра MST к обособленным отраслям.</div>
     </section>
   </aside>
   <section class="viz-card">
@@ -153,7 +151,6 @@ const circles=N.map((n,i)=>{const c=el('circle',{cx:n.x,cy:n.y,r:radius(n.jobs,5
    +'ФОТ: '+bn(n.jobs)+' млрд $<br>Распространённость: '+n.ubiq+' из 925 · вес редкости '+n.w.toFixed(2).replace('.',',')
    +'<br>Сложность (PCI): '+n.pci.toFixed(2).replace('.',',')+'<br>Связей выше порога: '+n.deg
    +'<br>Ближайшая связь: sIDF '+f3(n.maxprox)+' · proximity '+f3(n.maxavg)
-   +'<br>Кластер Louvain: '+(n.cluster<0?'вне кластеров':n.cluster+1)
    +(n.state!=='core'?'<br><span>'+POS[n.state]+'</span>':'');});
  c.addEventListener('mouseleave',()=>{tip.style.display='none';});
  c.addEventListener('click',()=>select(i));
