@@ -39,7 +39,7 @@
 .note{font-size:13px;color:var(--muted);margin-top:10px;line-height:1.5}
 #tip{position:fixed;pointer-events:none;display:none;max-width:320px;background:var(--card);border:1px solid var(--border);border-radius:11px;padding:10px 12px;font-size:13.5px;box-shadow:0 6px 18px rgba(16,32,52,.16);z-index:9}
 #tip b{display:block;margin-bottom:3px}#tip span{color:var(--muted)}
-.cities{width:100%;border-collapse:collapse}.cities td{padding:5px 8px;border-bottom:1px solid var(--border);font-size:14px}.cities td.num{text-align:right;font-variant-numeric:tabular-nums}
+.cities{width:100%;border-collapse:collapse}.cities td{padding:5px 8px;border-bottom:1px solid var(--border);font-size:14px}.cities td.num{text-align:right;font-variant-numeric:tabular-nums}.cities th{padding:5px 8px 6px;border-bottom:1px solid var(--border);font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);font-weight:500;text-align:left}.cities th.num{text-align:right}
 @media(max-width:1000px){.result{grid-template-columns:1fr}.viz{height:420px}}
 </style>
 </head>
@@ -47,7 +47,7 @@
 <header class="topbar">
   <div class="brand"><div class="brand-mark">&#9671;</div><div><div class="brand-title">Пространство отраслей США</div></div></div>
   <nav class="nav"><a href="index.html">Сеть</a><a href="clusters.html">Кластеры</a><a href="stats.html">Статистика</a><a href="methods.html">Методология</a><a href="demo.html" aria-current="page">Демо</a></nav>
-  <div class="chips"><span class="chip">Отраслей <b>312</b></span><span class="chip">Городов <b>925</b></span></div>
+  <div class="chips"><span class="chip">Отраслей <b>329</b></span><span class="chip">Городов <b>925</b></span></div>
 </header>
 <main class="wrap">
 <p class="intro">Введите отрасль, которую хотите открыть. Покажем, с какими отраслями она обычно соседствует в городах США, насколько она сложная и в каком типе городской экономики живёт.</p>
@@ -66,31 +66,32 @@
       <div class="metric-grid" style="grid-template-columns:minmax(220px,340px)">
         <div class="metric"><div class="metric-label">Сложность</div><div class="metric-value" id="r-cx"></div><div class="bar"><b id="r-bar"></b></div><div class="metric-sub" id="r-cx-sub"></div></div>
       </div>
-      <div class="note" id="r-cluster"></div>
-    </section>
-    <section class="viz"><svg id="svg" role="img" aria-label="Соседи отрасли в сети"></svg><div id="tip"></div></section>
-    <p class="note">Связи показывают, какие отрасли обычно специализированы в одних и тех же городах США чаще, чем было бы случайно. Это совместное присутствие, а не причина и следствие: сеть говорит, что «обычно живёт рядом», но не гарантирует, что одно вырастет из другого.</p>
+          </section>
+    <section class="viz"><svg id="svg" role="img" aria-label="Соседи отрасли в сети"></svg><div style="position:absolute;left:12px;bottom:10px;font-size:12px;color:var(--muted);pointer-events:none">Перетаскивание — перемещение · Колесо — масштаб</div><div id="tip"></div></section>
+    <p class="note">Связи показывают, какие отрасли обычно специализированы в одних и тех же городах США чаще, чем было бы случайно. Это совместное присутствие, а не причина и следствие: сеть говорит, что «обычно живёт рядом».</p>
   </div>
   <aside>
     <section class="card list">
-      <div class="card-title">Что обычно рядом</div>
+      <div class="card-title">Топ-10 связанных отраслей</div>
+      <div class="head" style="text-align:right;padding:2px 2px 6px;border-bottom:1px solid var(--border)">Сложность</div>
       <div id="r-nbr" class="scroll"></div>
-      <div class="field-hint" style="margin-top:8px">Первое число — сила связи (sIDF), второе — сложность соседа от 0 до 1.</div>
+      <div class="field-hint" style="margin-top:8px">Десять самых сильных связей отрасли. Число — сложность соседа (1 — самая сложная, 0 — самая лёгкая).</div>
     </section>
     <section class="card">
       <div class="card-title">Где чаще встречается</div>
-      <table class="cities" id="r-cities"></table>
-      <div class="field-hint" style="margin-top:8px">Города, где отрасль специализирована, по занятости в ней.</div>
+      <table class="cities"><thead><tr><th>Городские агломерации</th><th class="num">ФОТ, млрд $</th></tr></thead><tbody id="r-cities"></tbody></table>
     </section>
   </aside>
 </section>
 </main>
-<script src="data/network.js?v=11e3af8a"></script>
+<script src="data/network.js?v=80172c0e"></script>
 <script>
 const N=DATA.nodes,E=DATA.edges,CT=DATA.cities,NS='http://www.w3.org/2000/svg';
 const nf=new Intl.NumberFormat('ru-RU'),f2=v=>v.toFixed(2).replace('.',','),f3=v=>v.toFixed(3).replace('.',',');
+const bn=v=>(v/1000).toLocaleString('ru-RU',{minimumFractionDigits:v>=10000?1:2,maximumFractionDigits:v>=10000?1:2});
 const nbr=N.map(()=>[]);E.forEach(e=>{if(e.tree)return;nbr[e.s].push({j:e.t,v:e.v});nbr[e.t].push({j:e.s,v:e.v});});
 nbr.forEach(l=>l.sort((a,b)=>b.v-a.v));
+const TOPK=DATA.topk||10;const nb=i=>nbr[i].slice(0,TOPK);
 const specOf=N.map(()=>[]);CT.forEach((c,k)=>{for(const i of c.i)specOf[i].push(k);});
 const norm=s=>s.toLowerCase().replace(/ё/g,'е').replace(/[^a-zа-я0-9 ]+/g,' ').replace(/\s+/g,' ').trim();
 const tri=s=>{const t=new Set();const w='  '+s+' ';for(let i=0;i<w.length-2;i++)t.add(w.slice(i,i+3));return t;};
@@ -122,7 +123,7 @@ const gE=el('g',{}),gN=el('g',{});svg.append(gE,gN);
 const SPAN=Math.max(Math.max(...N.map(n=>n.x))-Math.min(...N.map(n=>n.x)),Math.max(...N.map(n=>n.y))-Math.min(...N.map(n=>n.y)))/1000;
 const maxJobs=Math.max(...N.map(n=>n.jobs));
 const radius=j=>{const lg=2+8*Math.log1p(j)/Math.log1p(maxJobs),ar=Math.max(2,18*Math.sqrt(j/maxJobs));return (lg+ar)/2*SPAN;};
-const lines=E.filter(e=>!e.tree).map(e=>{const a=N[e.s],b=N[e.t];const l=el('line',{x1:a.x,y1:a.y,x2:b.x,y2:b.y,stroke:'#8596ab','stroke-width':0.8*SPAN,opacity:0.12});l.dataset.s=e.s;l.dataset.t=e.t;gE.append(l);return l;});
+const lines=E.filter(e=>!e.tree&&e.top).map(e=>{const a=N[e.s],b=N[e.t];const l=el('line',{x1:a.x,y1:a.y,x2:b.x,y2:b.y,stroke:'#8596ab','stroke-width':0.8*SPAN,opacity:0.12});l.dataset.s=e.s;l.dataset.t=e.t;gE.append(l);return l;});
 const circles=N.map((n,i)=>{const c=el('circle',{cx:n.x,cy:n.y,r:radius(n.jobs),fill:'#e4e8ed',stroke:'#c3cad3','stroke-width':SPAN});
  c.style.cursor='pointer';c.addEventListener('mousemove',ev=>{tip.style.display='block';tip.style.left=Math.min(ev.clientX+14,innerWidth-330)+'px';tip.style.top=(ev.clientY+14)+'px';
   tip.innerHTML='<b>'+n.ru+'</b><span>'+n.id+' · '+n.name+'</span><br>сложность '+f2(n.cx)+' · '+n.ubiq+' городов';});
@@ -131,32 +132,36 @@ function view(ids){const xs=ids.map(i=>N[i].x),ys=ids.map(i=>N[i].y);let x0=Math
  const pad=Math.max(120*SPAN,(x1-x0)*0.25,(y1-y0)*0.25);x0-=pad;x1+=pad;y0-=pad;y1+=pad;
  const r=svg.getBoundingClientRect(),ar=r.width/r.height||1.6;let W=x1-x0,H=y1-y0;if(W/H<ar)W=H*ar;else H=W/ar;
  svg.setAttribute('viewBox',[(x0+x1)/2-W/2,(y0+y1)/2-H/2,W,H].join(' '));}
+const getVB=()=>{const v=svg.getAttribute('viewBox');return v?v.split(' ').map(Number):null;},setVB=v=>svg.setAttribute('viewBox',v.join(' '));
+let drag=null;svg.style.cursor='grab';svg.style.touchAction='none';
+svg.addEventListener('pointerdown',e=>{if(e.target.tagName==='circle')return;const v=getVB();if(!v)return;drag={x:e.clientX,y:e.clientY,v:v};svg.style.cursor='grabbing';e.preventDefault();});
+svg.addEventListener('pointermove',e=>{if(!drag)return;const r=svg.getBoundingClientRect(),k=drag.v[2]/r.width;setVB([drag.v[0]-(e.clientX-drag.x)*k,drag.v[1]-(e.clientY-drag.y)*k,drag.v[2],drag.v[3]]);});
+const endDrag=()=>{drag=null;svg.style.cursor='grab';};svg.addEventListener('pointerup',endDrag);svg.addEventListener('pointercancel',endDrag);svg.addEventListener('pointerleave',endDrag);
+svg.addEventListener('wheel',e=>{const v=getVB();if(!v)return;e.preventDefault();const r=svg.getBoundingClientRect(),f=e.deltaY>0?1.15:1/1.15;const px=v[0]+(e.clientX-r.left)/r.width*v[2],py=v[1]+(e.clientY-r.top)/r.height*v[3];setVB([px-(px-v[0])*f,py-(py-v[1])*f,v[2]*f,v[3]*f]);},{passive:false});
 function pick(i){const n=N[i];q.value=n.ru;sugg.style.display='none';pickEl.value=String(i);document.getElementById('result').classList.add('on');
- const near=new Set(nbr[i].map(x=>x.j));
+ const near=new Set(nb(i).map(x=>x.j));
  circles.forEach((c,j)=>{const on=j===i||near.has(j);c.setAttribute('fill',on?N[j].color:'#e4e8ed');c.setAttribute('stroke',j===i?'#16202e':(on?'#000':'#c3cad3'));c.setAttribute('stroke-width',(j===i?3:1)*SPAN);c.setAttribute('opacity',on?1:0.5);});
- lines.forEach(l=>{const hot=(+l.dataset.s===i||+l.dataset.t===i);l.setAttribute('opacity',hot?0.85:0.06);l.setAttribute('stroke-width',(hot?1.8:0.8)*SPAN);});
+ lines.forEach(l=>{const hot=(+l.dataset.s===i&&near.has(+l.dataset.t))||(+l.dataset.t===i&&near.has(+l.dataset.s));l.setAttribute('opacity',hot?0.85:0.06);l.setAttribute('stroke-width',(hot?1.8:0.8)*SPAN);});
  gN.append(circles[i]);view([i].concat([...near]));
  document.getElementById('r-ru').textContent=n.ru;document.getElementById('r-en').textContent=n.id+' · '+n.name;
- const cl=n.cluster;document.getElementById('r-chips').innerHTML='<span class="chip"><i style="background:'+n.color+'"></i>'+n.sector+'</span>'
-  +(cl>=0?'<span class="chip"><i style="background:'+DATA.louvain[cl]+'"></i>кластер '+(cl+1)+' · '+DATA.clusterNames[cl]+'</span>':'<span class="chip">вне кластеров</span>');
+ const cl=n.cluster;document.getElementById('r-chips').innerHTML='<span class="chip"><i style="background:'+n.color+'"></i>'+n.sector+'</span>';
  document.getElementById('r-cx').textContent=f2(n.cx);document.getElementById('r-bar').style.width=(100*n.cx)+'%';
  document.getElementById('r-cx-sub').textContent='сложнее '+Math.round(100*n.cx)+'% отраслей · PCI '+f2(n.pci);
- document.getElementById('r-cluster').innerHTML=cl>=0?'<b>Тип городской экономики:</b> '+DATA.clusterNames[cl]+' — '+DATA.clusterNotes[cl]+'.':(n.state==='solo'?'<b>Обособленная отрасль:</b> присутствует в городах примерно пропорционально занятости и ни с кем не совпадает выше случайного.':'<b>Вне кластеров:</b> связана только с небольшой группой отраслей.');
  const row=(x,val)=>'<button data-i="'+x.j+'"><i style="background:'+N[x.j].color+'"></i><span>'+N[x.j].ru+'<span class="s">'+N[x.j].id+' · '+N[x.j].name+'</span></span><span class="v">'+val+'</span></button>';
- document.querySelector('#r-nbr').previousElementSibling.textContent='Что обычно рядом · '+nbr[i].length;document.getElementById('r-nbr').innerHTML=nbr[i].length?nbr[i].map(x=>row(x,f2(x.v)+' · '+f2(N[x.j].cx))).join(''):'<div class="field-hint">Связей выше порога нет.</div>';
+ document.querySelector('.list .card-title').textContent=''+(nb(i).length>=TOPK?'Топ-10 связанных отраслей':'Связанные отрасли · '+nb(i).length);document.getElementById('r-nbr').innerHTML=nb(i).length?nb(i).map(x=>row(x,f2(N[x.j].cx))).join(''):'<div class="field-hint">Связей выше порога нет.</div>';
   document.querySelectorAll('#r-nbr button').forEach(b=>{b.onclick=()=>pick(+b.dataset.i);});
  const byId={};CT.forEach(c=>{byId[c.c]=c;});
- document.getElementById('r-cities').innerHTML=(n.top||[]).map(([c,e])=>{const ct=byId[c]||{n:c,ru:''};return '<tr><td>'+(ct.ru||ct.n)+(ct.t==='micro'?' <span style="color:var(--muted);font-size:12px">микро</span>':'')+'</td><td class="num">'+nf.format(e)+'</td></tr>';}).join('');
+ document.getElementById('r-cities').innerHTML=(n.top||[]).map(([c,e])=>{const ct=byId[c]||{n:c,ru:''};return '<tr><td>'+(ct.ru||ct.n)+(ct.t==='micro'?' <span style="color:var(--muted);font-size:12px">микро</span>':'')+'</td><td class="num">'+bn(e)+'</td></tr>';}).join('');
  history.replaceState(null,'','#'+n.id);}
 // выпадающий список: группы в порядке легенды, внутри по русскому названию
 const pickEl=document.getElementById('pick');const order=Object.keys(DATA.palette);
 order.forEach(g=>{const items=N.map((n,i)=>[n,i]).filter(p=>p[0].sector===g).sort((a,b)=>a[0].ru.localeCompare(b[0].ru,'ru'));if(!items.length)return;
  const og=document.createElement('optgroup');og.label=g;items.forEach(([n,i])=>{const o=document.createElement('option');o.value=i;o.textContent=n.ru+' · '+n.id;og.append(o);});pickEl.append(og);});
 pickEl.onchange=()=>{if(pickEl.value!=='')pick(+pickEl.value);};
-const EX=['722515','541511','541940','721','523','33341','236116'];
+const EX=["722515", "541511", "523110", "721110", "33611", "236117", "622110"];
 document.getElementById('examples').innerHTML='Попробуйте: '+EX.map(c=>{const i=N.findIndex(n=>n.id===c);return i>=0?'<button data-i="'+i+'">'+N[i].ru+'</button>':'';}).join('');
 document.querySelectorAll('#examples button').forEach(b=>{b.onclick=()=>pick(+b.dataset.i);});
 const h=location.hash.slice(1);if(h){const i=N.findIndex(n=>n.id===h);if(i>=0)pick(i);}
-addEventListener('resize',()=>{const h=location.hash.slice(1);const i=N.findIndex(n=>n.id===h);if(i>=0)view([i].concat(nbr[i].map(x=>x.j)));});
+addEventListener('resize',()=>{const h=location.hash.slice(1);const i=N.findIndex(n=>n.id===h);if(i>=0)view([i].concat(nb(i).map(x=>x.j)));});
 </script>
 </body></html>

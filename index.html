@@ -34,7 +34,7 @@ label.check input{margin-top:2px;accent-color:var(--accent)}
 .legend .n{color:var(--muted);font-size:12px}
 #tip{position:fixed;pointer-events:none;display:none;max-width:320px;background:var(--card);border:1px solid var(--border);border-radius:11px;padding:10px 12px;font-size:13.5px;box-shadow:0 6px 18px rgba(16,32,52,.16);z-index:9}
 #tip b{display:block;margin-bottom:3px}
-#tip span{color:var(--muted)} #tip span.ru{display:block;color:var(--text);font-weight:500} .list button span.ru,#results button span.ru,#neighbors button span.ru{display:block;color:var(--muted);font-size:12.5px;font-weight:400}
+#tip span{color:var(--muted)} #tip span.ru{display:block;color:var(--text);font-weight:500} .list button span.ru,#results button span.ru,#city-results button span.ru,#neighbors button span.ru{display:block;color:var(--muted);font-size:12.5px;font-weight:400}
 .results{max-height:40vh;overflow:auto;margin-top:10px}
 .results button{width:100%;text-align:left;border:0;border-bottom:1px solid var(--border);border-radius:0;padding:8px 2px}
 #neighbors,#specs{max-height:300px;overflow:auto;margin-top:10px;border-top:1px solid var(--border)}
@@ -68,7 +68,7 @@ label.check input{margin-top:2px;accent-color:var(--accent)}
       <div class="field-hint" id="city-found"></div>
       <div class="results" id="city-results"></div>
       <button id="city-reset" style="margin-top:10px;display:none">Сбросить город</button>
-      <div class="field-hint">Выбор города оставляет на графе его специализации (RCA &ge; 1 по занятости) и связи между ними.</div>
+      <div class="field-hint">Выбор города оставляет на графе его специализации (RCA &ge; 1 по ФОТ) и связи между ними.</div>
     </section>
     <section class="card"><div class="card-title">Поиск отраслей</div>
       <input id="search" type="search" placeholder="код NAICS или название">
@@ -81,8 +81,8 @@ label.check input{margin-top:2px;accent-color:var(--accent)}
       <label class="check"><input type="checkbox" id="mst" checked> Показывать MST — пунктиром</label>
       <label class="check"><input type="checkbox" id="grey" checked> Серым — обособленные отрасли</label>
       <label class="field-label" for="size">Масштаб узлов</label>
-      <input id="size" type="range" min="2" max="12" value="5">
-      <div class="field-hint">Раскладка зафиксирована из pyvis. Размер узла — среднее логарифмической шкалы и шкалы площади по занятости. Связь — proximity × √(сглаженный IDF), порог на том же перцентиле, что proximity = 0,5 в Казахстане.</div>
+      <input id="size" type="range" min="2" max="12" value="7">
+      <div class="field-hint">Раскладка зафиксирована из pyvis. Размер узла — по ФОТ отрасли. Связь — proximity × √(wᵢ·wⱼ), w = ln(925/ubiquity)+1, порог sIDF ≥ 1. Показаны все связи порога, ребро в цвете узла-источника; пунктиром рёбра MST к обособленным отраслям.</div>
     </section>
   </aside>
   <section class="viz-card">
@@ -108,11 +108,12 @@ label.check input{margin-top:2px;accent-color:var(--accent)}
     </section>
   </aside>
 </main>
-<script src="data/network.js?v=895a0ea1"></script>
+<script src="data/network.js?v=80172c0e"></script>
 <script>
 const NS='http://www.w3.org/2000/svg',svg=document.getElementById('svg'),tip=document.getElementById('tip');
 const el=(t,a)=>{const e=document.createElementNS(NS,t);for(const k in a)e.setAttribute(k,a[k]);return e;};
 const nf=new Intl.NumberFormat('ru-RU'),f3=v=>v.toFixed(3).replace('.',',');
+const bn=v=>(v/1000).toLocaleString('ru-RU',{minimumFractionDigits:v>=10000?1:2,maximumFractionDigits:v>=10000?1:2});
 const N=DATA.nodes,E=DATA.edges,CT=DATA.cities;
 document.getElementById('chip-nodes').textContent=N.length;
 document.getElementById('chip-cut').textContent='sIDF ≥ '+DATA.cutoff.toFixed(2).replace('.',',');
@@ -128,9 +129,10 @@ const mode=()=>document.getElementById('mode').value;
 const apart=n=>document.getElementById('grey').checked&&n.state!=='core';
 const fill=n=>mode()==='louvain'?(n.cluster<0?DATA.grey:DATA.louvain[n.cluster]):(apart(n)?DATA.grey:n.color);
 const line=n=>'#000000';
+const EOP=0.4,EOP_HOT=0.95;const ecol=e=>e.tree?'#8596ab':fill(N[e.s]);
 const POS={core:'в ядре',island:'обособлена группой',solo:'обособлена, своих связей нет'};
 const lines=E.map(e=>{const a=N[e.s],b=N[e.t];
- const l=el('line',{x1:a.x,y1:a.y,x2:b.x,y2:b.y,stroke:'#8596ab','stroke-width':0.9*SPAN,opacity:0.3});
+ const l=el('line',{x1:a.x,y1:a.y,x2:b.x,y2:b.y,stroke:e.tree?'#8596ab':fill(a),'stroke-width':0.9*SPAN,opacity:EOP});
  if(e.tree)l.setAttribute('stroke-dasharray',(5*SPAN)+' '+(4*SPAN));
  gEdges.append(l);return l;});
 // Невидимые широкие линии ловят наведение на связь: в подсказке sIDF, proximity и общие города.
@@ -138,8 +140,8 @@ const hits=E.map((e,k)=>{const a=N[e.s],b=N[e.t];
  const h=el('line',{x1:a.x,y1:a.y,x2:b.x,y2:b.y,'stroke-width':5*SPAN,class:'hit'});
  h.addEventListener('mousemove',ev=>{tip.style.display='block';
   tip.style.left=Math.min(ev.clientX+16,innerWidth-340)+'px';tip.style.top=(ev.clientY+16)+'px';
-  tip.innerHTML='<b>'+a.id+' × '+b.id+'</b><span>'+a.name+' · '+b.name+'</span><span class="ru">'+a.ru+' · '+b.ru+'</span><br>'
-   +'sIDF: '+f3(e.v)+(e.tree?' · ребро MST, ниже порога':'')+'<br>proximity: '+f3(e.a)
+  tip.innerHTML='<b>'+a.id+' × '+b.id+'</b><span class="ru">'+a.ru+' · '+b.ru+'</span><span>'+a.name+' · '+b.name+'</span><br>'
+   +'sIDF: '+f3(e.v)+(e.tree?' · ребро MST, ниже порога':(e.mst?' · ребро MST':''))+'<br>proximity: '+f3(e.a)
    +'<br>Общих городов: '+e.c+' (распространённость '+a.ubiq+' / '+b.ubiq+')';});
  h.addEventListener('mouseleave',()=>{tip.style.display='none';});
  gHit.append(h);return h;});
@@ -147,8 +149,8 @@ const circles=N.map((n,i)=>{const c=el('circle',{cx:n.x,cy:n.y,r:radius(n.jobs,5
   stroke:line(n),'stroke-width':1*SPAN,class:'node',tabindex:0});
  c.addEventListener('mousemove',ev=>{tip.style.display='block';
   tip.style.left=Math.min(ev.clientX+16,innerWidth-340)+'px';tip.style.top=(ev.clientY+16)+'px';
-  tip.innerHTML='<b>'+n.id+' — '+n.name+'</b><span class="ru">'+n.ru+'</span><span>'+n.sector+' · NAICS-'+n.level+'</span><br>'
-   +'Занятость: '+nf.format(n.jobs)+'<br>Распространённость: '+n.ubiq+' из 925 · вес редкости '+n.w.toFixed(2).replace('.',',')
+  tip.innerHTML='<b>'+n.id+' — '+n.ru+'</b><span>'+n.name+' · '+n.sector+' · NAICS-'+n.level+'</span><br>'
+   +'ФОТ: '+bn(n.jobs)+' млрд $<br>Распространённость: '+n.ubiq+' из 925 · вес редкости '+n.w.toFixed(2).replace('.',',')
    +'<br>Сложность (PCI): '+n.pci.toFixed(2).replace('.',',')+'<br>Связей выше порога: '+n.deg
    +'<br>Ближайшая связь: sIDF '+f3(n.maxprox)+' · proximity '+f3(n.maxavg)
    +'<br>Кластер Louvain: '+(n.cluster<0?'вне кластеров':n.cluster+1)
@@ -157,7 +159,7 @@ const circles=N.map((n,i)=>{const c=el('circle',{cx:n.x,cy:n.y,r:radius(n.jobs,5
  c.addEventListener('click',()=>select(i));
  gNodes.append(c);return c;});
 const nbr=N.map(()=>[]);
-E.forEach((e,k)=>{nbr[e.s].push({j:e.t,v:e.v,a:e.a,c:e.c,tree:e.tree,k:k});nbr[e.t].push({j:e.s,v:e.v,a:e.a,c:e.c,tree:e.tree,k:k});});
+E.forEach((e,k)=>{nbr[e.s].push({j:e.t,v:e.v,a:e.a,c:e.c,tree:e.tree,mst:e.mst,k:k});nbr[e.t].push({j:e.s,v:e.v,a:e.a,c:e.c,tree:e.tree,mst:e.mst,k:k});});
 nbr.forEach(list=>list.sort((a,b)=>b.v-a.v));
 const specOf=N.map(()=>[]);
 CT.forEach((t,k)=>{for(const i of t.i)specOf[i].push(k);});
@@ -178,16 +180,16 @@ function draw(){const showTree=document.getElementById('mst').checked;
  // как в «Пространстве ОКЭД3». Подсвечиваются только связи узла, выбранного вручную.
  lines.forEach((l,k)=>{const vis=showTree||!E[k].tree;
   l.style.display=vis?'':'none';hits[k].style.display=vis?'':'none';
-  const hot=keep&&keep.has(k);l.setAttribute('opacity',hot?0.9:0.3);l.setAttribute('stroke-width',(hot?1.8:0.9)*SPAN);});
+  const hot=keep&&keep.has(k);l.setAttribute('stroke',ecol(E[k]));l.setAttribute('opacity',hot?EOP_HOT:EOP);l.setAttribute('stroke-width',(hot?1.8:0.9)*SPAN);});
  const box=document.getElementById('neighbors'),reset=document.getElementById('reset');
  const specBox=document.getElementById('specs'),head=document.getElementById('detail-title');
  const labelSpec=document.getElementById('label-spec'),labelDeg=document.getElementById('label-deg');
  document.getElementById('city-reset').style.display=city===null?'none':'';
  if(selected===null&&city!==null){const t=CT[city];head.textContent='Выбранный город';
-  labelSpec.textContent='Специализаций';labelDeg.textContent='Занятость';
-  document.getElementById('detail-name').textContent=t.n;document.getElementById('detail-ru').textContent=t.ru||'';
+  labelSpec.textContent='Специализаций';labelDeg.textContent='ФОТ, млрд $';
+  document.getElementById('detail-name').textContent=t.ru||t.n;document.getElementById('detail-ru').textContent=t.ru?t.n:'';
   document.getElementById('detail-spec').textContent=t.i.length;
-  document.getElementById('detail-deg').textContent=nf.format(t.jobs);
+  document.getElementById('detail-deg').textContent=bn(t.jobs);
   document.getElementById('detail-note').textContent='CBSA '+t.c+' · '+(t.t==='metro'?'метрополитен':'микрополитен')+' · ECI '+t.eci.toFixed(2).replace('.',',');
   const rows=t.i.slice().sort((a,b)=>N[b].pci-N[a].pci);
   box.innerHTML='<div class="head">Специализации · '+rows.length+' · по сложности</div>'
@@ -204,12 +206,12 @@ function draw(){const showTree=document.getElementById('mst').checked;
  document.getElementById('detail-name').textContent=n.id+' — '+n.name;document.getElementById('detail-ru').textContent=n.ru;
  document.getElementById('detail-spec').textContent=n.ubiq;
  document.getElementById('detail-deg').textContent=n.deg;
- document.getElementById('detail-note').textContent=n.sector+' · NAICS-'+n.level+' · занятость '+nf.format(n.jobs)
+ document.getElementById('detail-note').textContent=n.sector+' · NAICS-'+n.level+' · ФОТ '+bn(n.jobs)+' млрд $'
   +' · PCI '+n.pci.toFixed(2).replace('.',',')+' · кластер '+(n.cluster<0?'вне кластеров':n.cluster+1)+' · '+POS[n.state];
  const list=nbr[selected].filter(x=>showTree||!x.tree);
- box.innerHTML='<div class="head">Связанные отрасли · '+list.length+' · sIDF / proximity</div>'
+ box.innerHTML='<div class="head">Связи порога · '+list.length+' · sIDF / proximity</div>'
   +list.map(x=>'<button data-i="'+x.j+'">'+N[x.j].id+' · '+N[x.j].name+' · <b>'+f3(x.v)+'</b> <span class="sub">/ '+f3(x.a)+' · общих '+x.c+'</span>'
-   +(x.tree?' · MST':'')+'<span class="ru">'+N[x.j].ru+'</span></button>').join('');
+   +(x.mst?' · MST':'')+'<span class="ru">'+N[x.j].ru+'</span></button>').join('');
  box.querySelectorAll('button').forEach(b=>{b.onclick=()=>select(+b.dataset.i);});
  const mine=specOf[selected];
  specBox.innerHTML='<div class="head">Города специализации · '+mine.length+' · по ECI</div>'
@@ -246,12 +248,13 @@ document.getElementById('fit').onclick=fit;
 document.getElementById('full').onclick=()=>{const card=svg.closest('.viz-card');if(document.fullscreenElement)document.exitFullscreen();else card.requestFullscreen();};
 function redraw(){const scale=+document.getElementById('size').value,showTree=document.getElementById('mst').checked;
  circles.forEach((c,i)=>{c.setAttribute('r',radius(N[i].jobs,scale));c.setAttribute('fill',fill(N[i]));});
+ lines.forEach((l,k)=>l.setAttribute('stroke',ecol(E[k])));
  let shown=0;E.forEach(e=>{if(!e.tree)shown++;});
  document.getElementById('chip-edges').textContent=nf.format(shown)+(showTree?' + '+E.filter(e=>e.tree).length+' MST':'');}
 const legend=document.getElementById('legend'),active=new Set();
 function buildLegend(){const lv=mode()==='louvain',ap=document.getElementById('grey').checked;let groups;
  document.getElementById('legend-title').textContent=lv?'Кластеры Louvain':'Группы отраслей';
- document.getElementById('legend-hint').textContent=lv?'Кластеры по связям выше порога, без рёбер MST; нумерация по сложности: 1 — самый простой, последний — самый сложный (средний PCI). Щелчок подсвечивает кластер.':'Щелчок по группе подсвечивает её.';
+ document.getElementById('legend-hint').textContent=lv?'Кластеры Louvain по всем связям порога, без MST; нумерация по сложности: 1 — самый простой, последний — самый сложный (средний PCI). Щелчок подсвечивает кластер.':'Щелчок по группе подсвечивает её.';
  if(lv){groups=DATA.clusters.map((c,k)=>({name:'Кластер '+(k+1)+' · PCI '+c.pci.toFixed(2).replace('.',',')+' · '+Object.entries(c.mix).map(([b,n])=>b.toLowerCase().split(',')[0]+' '+n).join(', '),color:DATA.louvain[k],key:'lv'+k,count:c.n}));
   groups.push({name:'Вне кластеров',color:DATA.grey,key:'lvnone',count:N.filter(n=>n.cluster<0).length});}
  else{groups=Object.keys(DATA.palette).map(name=>({name:name,color:DATA.palette[name],key:name,count:N.filter(n=>n.sector===name&&(!ap||n.state==='core')).length}));
@@ -264,16 +267,16 @@ const search=document.getElementById('search'),results=document.getElementById('
 function find(){const q=search.value.trim().toLowerCase();const hit=[];
  N.forEach((n,i)=>{if(!q||n.id.indexOf(q)>=0||n.name.toLowerCase().indexOf(q)>=0||n.ru.toLowerCase().indexOf(q)>=0)hit.push([n,i]);});
  document.getElementById('found').textContent='Найдено: '+hit.length;
- results.innerHTML=hit.slice(0,150).map(p=>'<button data-i="'+p[1]+'">'+p[0].id+' · '+p[0].name+'<span class="ru">'+p[0].ru+'</span></button>').join('');
+ results.innerHTML=hit.slice(0,150).map(p=>'<button data-i="'+p[1]+'">'+p[0].id+' · '+p[0].ru+'<span class="ru">'+p[0].name+'</span></button>').join('');
  results.querySelectorAll('button').forEach(b=>{b.onclick=()=>select(+b.dataset.i);});}
 search.oninput=find;
 const cityIn=document.getElementById('city'),cityRes=document.getElementById('city-results');
 function findCity(){const q=cityIn.value.trim().toLowerCase();const hit=[];
- CT.forEach((t,k)=>{if(!q||t.c.indexOf(q)>=0||t.n.toLowerCase().indexOf(q)>=0)hit.push(k);});
+ CT.forEach((t,k)=>{if(!q||t.c.indexOf(q)>=0||t.n.toLowerCase().indexOf(q)>=0||(t.ru||'').toLowerCase().indexOf(q)>=0)hit.push(k);});
  const asc=document.getElementById('city-sort').value==='asc';   // CT отсортирован по убыванию ECI при сборке
  if(asc)hit.reverse();
  document.getElementById('city-found').textContent='Найдено городов: '+hit.length+(asc?' · по возрастанию ECI':' · по убыванию ECI');
- cityRes.innerHTML=hit.slice(0,150).map(k=>'<button data-k="'+k+'">'+CT[k].n+(CT[k].t==='micro'?' <span class="sub" style="color:var(--muted);font-size:12px">микро</span>':'')+' · ECI <b>'+CT[k].eci.toFixed(2).replace('.',',')+'</b> <span style="color:var(--muted);font-size:12px">· спец. '+CT[k].i.length+'</span></button>').join('');
+ cityRes.innerHTML=hit.slice(0,150).map(k=>'<button data-k="'+k+'">'+(CT[k].ru||CT[k].n)+(CT[k].t==='micro'?' <span class="sub" style="color:var(--muted);font-size:12px">микро</span>':'')+' · ECI <b>'+CT[k].eci.toFixed(2).replace('.',',')+'</b> <span style="color:var(--muted);font-size:12px">· спец. '+CT[k].i.length+'</span>'+(CT[k].ru?'<span class="ru">'+CT[k].n+'</span>':'')+'</button>').join('');
  cityRes.querySelectorAll('button').forEach(b=>{b.onclick=()=>selectCity(+b.dataset.k);});}
 cityIn.oninput=findCity;document.getElementById('city-sort').onchange=findCity;
 redraw();buildLegend();draw();find();findCity();
