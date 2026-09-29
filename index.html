@@ -67,7 +67,7 @@ label.check input{margin-top:2px;accent-color:var(--accent)}
       <div class="field-hint" id="city-found"></div>
       <div class="results" id="city-results"></div>
       <button id="city-reset" style="margin-top:10px;display:none">Сбросить город</button>
-      <div class="field-hint">Выбор города оставляет на графе его специализации (RCA &ge; 1 по ФОТ) и связи между ними.</div>
+      <div class="field-hint">Выбор города оставляет на графе его специализации и связи между ними.</div>
     </section>
     <section class="card"><div class="card-title">Поиск отраслей</div>
       <input id="search" type="search" placeholder="код NAICS или название">
@@ -100,7 +100,7 @@ label.check input{margin-top:2px;accent-color:var(--accent)}
     </section>
     <section class="card"><div class="card-title" id="legend-title">Группы отраслей</div>
       <div class="legend" id="legend"></div>
-      <div class="field-hint" id="legend-hint">Щелчок по группе подсвечивает её.</div>
+      <div class="field-hint" id="legend-hint">Выбор группы подсвечивает её.</div>
     </section>
   </aside>
 </main>
@@ -113,7 +113,7 @@ const bn=v=>(v/1000).toLocaleString('ru-RU',{minimumFractionDigits:v>=10000?1:2,
 const N=DATA.nodes,E=DATA.edges,CT=DATA.cities;
 document.getElementById('chip-nodes').textContent=N.length;
 document.getElementById('chip-cut').textContent='sIDF ≥ '+DATA.cutoff.toFixed(2).replace('.',',');
-const gEdges=el('g',{}),gHit=el('g',{}),gNodes=el('g',{});svg.append(gEdges,gHit,gNodes);
+const gEdges=el('g',{}),gHit=el('g',{}),gNodes=el('g',{});svg.append(gEdges,gHit,gNodes);gHit.style.display='none';
 const maxJobs=Math.max.apply(null,N.map(n=>n.jobs));
 const SPAN=Math.max(Math.max.apply(null,N.map(n=>n.x))-Math.min.apply(null,N.map(n=>n.x)),
                     Math.max.apply(null,N.map(n=>n.y))-Math.min.apply(null,N.map(n=>n.y)))/1000;
@@ -146,9 +146,8 @@ const circles=N.map((n,i)=>{const c=el('circle',{cx:n.x,cy:n.y,r:radius(n.jobs,5
  c.addEventListener('mousemove',ev=>{tip.style.display='block';
   tip.style.left=Math.min(ev.clientX+16,innerWidth-340)+'px';tip.style.top=(ev.clientY+16)+'px';
   tip.innerHTML='<b>'+n.id+' — '+n.ru+'</b><span>'+n.name+' · '+n.sector+' · NAICS-'+n.level+'</span><br>'
-   +'ФОТ: '+bn(n.jobs)+' млрд $<br>Распространённость: '+n.ubiq+' из 925 · вес редкости '+n.w.toFixed(2).replace('.',',')
+   +'ФОТ: '+bn(n.jobs)+' млрд $<br>Распространённость: '+n.ubiq+' из 925'
    +'<br>Сложность (PCI): '+n.pci.toFixed(2).replace('.',',')+'<br>Связей выше порога: '+n.deg
-   +'<br>Ближайшая связь: sIDF '+f3(n.maxprox)+' · proximity '+f3(n.maxavg)
    +(n.state!=='core'?'<br><span>'+POS[n.state]+'</span>':'');});
  c.addEventListener('mouseleave',()=>{tip.style.display='none';});
  c.addEventListener('click',()=>select(i));
@@ -198,7 +197,7 @@ function draw(){const showTree=document.getElementById('mst').checked;
   document.getElementById('detail-note').textContent='Наведите или щёлкните отрасль на графе.';
   box.innerHTML='';reset.style.display='none';return;}
  const n=N[selected];
- document.getElementById('detail-name').textContent=n.id+' — '+n.name;document.getElementById('detail-ru').textContent=n.ru;
+ document.getElementById('detail-name').textContent=n.id+' — '+n.ru;document.getElementById('detail-ru').textContent=n.name;
  document.getElementById('detail-spec').textContent=n.ubiq;
  document.getElementById('detail-deg').textContent=n.deg;
  document.getElementById('detail-note').textContent=n.sector+' · NAICS-'+n.level+' · ФОТ '+bn(n.jobs)+' млрд $'
@@ -249,7 +248,7 @@ function redraw(){const scale=+document.getElementById('size').value,showTree=do
 const legend=document.getElementById('legend'),active=new Set();
 function buildLegend(){const lv=mode()==='louvain',ap=document.getElementById('grey').checked;let groups;
  document.getElementById('legend-title').textContent=lv?'Кластеры Louvain':'Группы отраслей';
- document.getElementById('legend-hint').textContent=lv?'Кластеры Louvain по всем связям порога, без MST; нумерация по сложности: 1 — самый простой, последний — самый сложный (средний PCI). Щелчок подсвечивает кластер.':'Щелчок по группе подсвечивает её.';
+ document.getElementById('legend-hint').textContent=lv?'Кластеры Louvain по всем связям порога, без MST; нумерация по сложности: 1 — самый простой, последний — самый сложный (средний PCI). Щелчок подсвечивает кластер.':'Выбор группы подсвечивает её.';
  if(lv){groups=DATA.clusters.map((c,k)=>({name:'Кластер '+(k+1)+' · PCI '+c.pci.toFixed(2).replace('.',',')+' · '+Object.entries(c.mix).map(([b,n])=>b.toLowerCase().split(',')[0]+' '+n).join(', '),color:DATA.louvain[k],key:'lv'+k,count:c.n}));
   groups.push({name:'Вне кластеров',color:DATA.grey,key:'lvnone',count:N.filter(n=>n.cluster<0).length});}
  else{groups=Object.keys(DATA.palette).map(name=>({name:name,color:DATA.palette[name],key:name,count:N.filter(n=>n.sector===name&&(!ap||n.state==='core')).length}));
